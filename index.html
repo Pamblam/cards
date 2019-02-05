@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>cards</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	</head>
+	<body>
+		
+		<canvas id="canvas" width="1027" height="615" style="background:green;"></canvas>
+		
+		<script src="Deck.js"></script>
+		<script>
+			var deck = new Deck();
+			var canvas = document.getElementById('canvas');
+			
+			var playArea = new PlayArea(canvas, deck);
+			
+			playArea.heck();
+			
+			playArea.on('cardclick', function(card){
+				card.faceUp = !card.faceUp;
+				this.renderCard(card);
+			});
+			
+		</script>
+		
+	</body>
+</html>
