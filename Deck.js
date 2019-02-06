@@ -77,6 +77,7 @@ class Card{
 		this.pos = {x:w/2, y:h/2};
 		this.spriteSheet = spriteSheet;
 		this.backSprite = {x:bx, y:by, h:bh, w:bw};
+		this.pile = null;
 	}
 	draw(ctx){
 		var sprite = this.faceUp ? this.sprite : this.backSprite;
@@ -104,10 +105,13 @@ class PlayArea{
 		this.canvas = canvas;
 		this.deck = deck;
 		this.ctx = canvas.getContext('2d');
-		this.rendered = [];
 		
 		this.is_animating = false;
 		this.animation_queue = [];
+		
+		// things like card piles and 
+		// columns that need to be rendered before cards
+		this.boardItems = [];
 		
 		this.eventQueues = {
 			cardclick: []
@@ -119,11 +123,11 @@ class PlayArea{
 			var touching = false;
 			deck.cards.forEach(card=>{
 				if(!card.isPointTouching(x, y)) return;
-				var idx = this.rendered.indexOf(card);
+				var idx = this.deck.cards.indexOf(card);
 				if(false === touching || idx < touching) touching = idx;
 			});
 			if(touching === false) return;
-			this.eventQueues.cardclick.forEach(fn=>fn.call(this, this.rendered[touching]));
+			this.eventQueues.cardclick.forEach(fn=>fn.call(this, this.deck.cards[touching]));
 		});
 	}
 	on(evt, fn){
@@ -141,6 +145,7 @@ class PlayArea{
 				return;
 			}
 			this.is_animating = true;
+			if(typeof offsets === 'function') offsets = offsets();
 			this.deck.onload(()=>{
 				var render = ()=>{
 					this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -151,57 +156,91 @@ class PlayArea{
 						card.pos.x += ofst.x;
 						card.pos.y += ofst.y;
 						card.rotation += ofst.rotation;
-						card.draw(this.ctx);
 					});
+					this.render();
 					if(frames) setTimeout(()=>render(), 10);
 					else{
+						done();
 						this.is_animating = false;
 						if(this.animation_queue.length){
 							var queue = this.animation_queue.shift();
 							this.animate(queue.frames, queue.offsets, queue.cb);
 						}
-						return done();
 					}
 				};
 				render();
 			});
 		});
 	}
-	heck(frames=100){
-		var offsets = [];
-		this.deck.cards.forEach(card=>{
-			offsets.push({
-				y: (this.getRandomInt(100, this.canvas.height-100)-card.pos.y)/frames,
-				x: (this.getRandomInt(100, this.canvas.width-100)-card.pos.x)/frames,
-				rotation: (this.getRandomInt(0, 359)-card.rotation)/frames
+	moveCardToPile(card, pile,frames=100){
+		var offsets = ()=>{
+			var o = [];
+			var pos = pile.getNextPos();
+			this.deck.cards.forEach(crd=>{
+				if(crd !== card){
+					o.push(null);
+				}else{
+					o.push({
+						y: (pos.y-crd.pos.y)/frames,
+						x: (pos.x-crd.pos.x)/frames,
+						rotation: 0
+					});
+				}
 			});
-			card.faceUp = this.getRandomInt(0, 1) === 1;
+			return o;
+		};
+		return new Promise(done=>{
+			this.animate(frames, offsets).then(()=>{
+				pile.addCard(card);
+				this.render();
+				done();
+			});
 		});
+	}
+	heck(frames=100){
+		var offsets = ()=>{
+			var o = [];
+			this.deck.cards.forEach(card=>{
+				o.push({
+					y: (this.getRandomInt(100, this.canvas.height-100)-card.pos.y)/frames,
+					x: (this.getRandomInt(100, this.canvas.width-100)-card.pos.x)/frames,
+					rotation: (this.getRandomInt(0, 359)-card.rotation)/frames
+				});
+				card.faceUp = this.getRandomInt(0, 1) === 1;
+			});
+			return o;
+		};
 		return this.animate(frames, offsets);
 	}
 	unheck(frames=100){
-		var offsets = [];
-		var dest = {
-			x:(this.rendered[0].width/2), 
-			y:(this.rendered[0].height/2)
-		};
-		this.deck.cards.forEach(card=>{
-			card.faceUp = false;
-			offsets.push({
-				rotation: -(card.rotation/frames),
-				x: -((card.pos.x - dest.x)/frames),
-				y: -((card.pos.y - dest.y)/frames)
+		var offsets = ()=>{
+			var o = [];
+			var dest = {
+				x:(this.deck.cards[0].width/2), 
+				y:(this.deck.cards[0].height/2)
+			};
+			this.deck.cards.forEach(card=>{
+				card.faceUp = false;
+				o.push({
+					rotation: -(card.rotation/frames),
+					x: -((card.pos.x - dest.x)/frames),
+					y: -((card.pos.y - dest.y)/frames)
+				});
 			});
-		});
+			return o;
+		};
 		return this.animate(frames, offsets);
 	}
 	render(){
-		this.deck.onload(()=>this.deck.cards.forEach(card=>this.renderCard(card)));
+		this.boardItems.forEach(itm=>itm.render(this.ctx));
+		this.deck.onload(()=>this.deck.cards.slice(0).forEach(card=>this.renderCard(card, false)));
 	}
-	renderCard(card){
-		var idx = this.rendered.indexOf(card);
-		if(idx !== -1) this.rendered.splice(idx, 1);
-		this.rendered.unshift(card);
+	renderCard(card, reposition=true){
+		if(reposition){
+			var idx = this.deck.cards.indexOf(card);
+			if(idx !== -1) this.deck.cards.splice(idx, 1);
+			this.deck.cards.unshift(card);
+		}
 		card.draw(this.ctx);
 	}
 	getRandomInt(min, max) {
@@ -211,8 +250,62 @@ class PlayArea{
 	}
 }
 
-class CardColumn{
-	constructor(){
+class CardPile{
+	constructor(playArea, x, y, w, h, xoffset=0, yoffset=0){
+		this.pos = {x, y};
+		this.width = w;
+		this.height = h;
+		this.cards = [];
+		this.yoffset = yoffset;
+		this.xoffset = xoffset;
+		this.playArea = playArea;
+	}
+	getNextPos(){
+		return {
+			x: this.pos.x + (this.xoffset * this.cards.length),
+			y: this.pos.y + (this.yoffset * this.cards.length)
+		};
+	}
+	addCard(card){
+		var idx = this.playArea.deck.cards.indexOf(card);
+		if(idx !== -1) this.playArea.deck.cards.splice(idx, 1);
+		this.playArea.deck.cards.unshift(card);
 		
+		card.pos = this.getNextPos();
+		card.pile = this;
+		this.cards.unshift(card);
+	}
+	topCard(remove){
+		var card = this.cards[0];
+		if(remove) this.removeCard(card);
+		return this.cards[0];
+	}
+	removeCard(card){
+		var idx = this.cards.indexOf(card);
+		if(idx !== -1){
+			card.pile = null;
+			this.cards.splice(idx, 1); 
+		}
+	}
+	render(ctx){
+		this.makeSquare(ctx, this.pos.x, this.pos.y, this.width, this.height);
+	}
+	makeSquare(ctx, x, y, width, height){
+		x -= (width/2);
+		y -= (height/2);
+		var radius = 5;
+		ctx.strokeStyle = "black";
+		ctx.beginPath();
+		ctx.moveTo(x + radius, y);
+		ctx.lineTo(x + width - radius, y);
+		ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+		ctx.lineTo(x + width, y + height - radius);
+		ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+		ctx.lineTo(x + radius, y + height);
+		ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+		ctx.lineTo(x, y + radius);
+		ctx.quadraticCurveTo(x, y, x + radius, y);
+		ctx.closePath();
+		ctx.stroke();
 	}
 }
