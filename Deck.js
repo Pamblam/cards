@@ -105,6 +105,10 @@ class PlayArea{
 		this.deck = deck;
 		this.ctx = canvas.getContext('2d');
 		this.rendered = [];
+		
+		this.is_animating = false;
+		this.animation_queue = [];
+		
 		this.eventQueues = {
 			cardclick: []
 		};
@@ -125,58 +129,74 @@ class PlayArea{
 	on(evt, fn){
 		this.eventQueues[evt].push(fn);
 	}
-	heck(){
-		this.deck.onload(()=>{
-			this.deck.cards.forEach(card=>{
-				card.faceUp = this.getRandomInt(0, 1) === 1;
-				card.rotation = this.getRandomInt(0, 359);
-				card.pos.y = this.getRandomInt(100, this.canvas.height-100);
-				card.pos.x = this.getRandomInt(100, this.canvas.width-100);
-				this.renderCard(card);
+	animate(frames, offsets, cb){
+		return new Promise(resolve=>{
+			var done = cb || resolve;
+			if(this.is_animating){
+				this.animation_queue.push({
+					frames: frames,
+					offsets: offsets,
+					cb: done
+				});
+				return;
+			}
+			this.is_animating = true;
+			this.deck.onload(()=>{
+				var render = ()=>{
+					this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+					frames--;
+					this.deck.cards.forEach((card, idx)=>{
+						var ofst = offsets[idx];
+						if(!ofst) return;
+						card.pos.x += ofst.x;
+						card.pos.y += ofst.y;
+						card.rotation += ofst.rotation;
+						card.draw(this.ctx);
+					});
+					if(frames) setTimeout(()=>render(), 10);
+					else{
+						this.is_animating = false;
+						if(this.animation_queue.length){
+							var queue = this.animation_queue.shift();
+							this.animate(queue.frames, queue.offsets, queue.cb);
+						}
+						return done();
+					}
+				};
+				render();
 			});
 		});
 	}
-	unheck(frames=100){
-		return new Promise(done=>{
-			var dest = {
-				x:(this.rendered[0].height/2), 
-				y:(this.rendered[0].width/2)
-			};
-			var offsets = [];
-			this.rendered.reverse().forEach(card=>{
-				card.faceUp = true;
-				card.draw(this.ctx);
-				offsets.push({
-					rotation: card.rotation/frames,
-					x: (card.pos.x - dest.x)/frames,
-					y: (card.pos.y - dest.y)/frames
-				});
+	heck(frames=100){
+		var offsets = [];
+		this.deck.cards.forEach(card=>{
+			offsets.push({
+				y: (this.getRandomInt(100, this.canvas.height-100)-card.pos.y)/frames,
+				x: (this.getRandomInt(100, this.canvas.width-100)-card.pos.x)/frames,
+				rotation: (this.getRandomInt(0, 359)-card.rotation)/frames
 			});
-			console.log(offsets);
-			var render = ()=>{
-				this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-				frames--;
-				this.rendered.forEach((card, idx)=>{
-					var ofst = offsets[idx];
-					card.pos.x -= ofst.x;
-					card.pos.y -= ofst.y;
-					card.rotation -= ofst.rotation;
-					card.draw(this.ctx);
-				});
-				if(frames) setTimeout(()=>render(), 10);
-				else{
-					this.rendered.forEach(card=>{
-						card.pos.x = dest.x;
-						card.pos.y = dest.y;
-						card.rotation = 0;
-						card.draw(this.ctx);
-					});
-					this.rendered.reverse();
-					return done();
-				}
-			};
-			render();
+			card.faceUp = this.getRandomInt(0, 1) === 1;
 		});
+		return this.animate(frames, offsets);
+	}
+	unheck(frames=100){
+		var offsets = [];
+		var dest = {
+			x:(this.rendered[0].width/2), 
+			y:(this.rendered[0].height/2)
+		};
+		this.deck.cards.forEach(card=>{
+			card.faceUp = false;
+			offsets.push({
+				rotation: -(card.rotation/frames),
+				x: -((card.pos.x - dest.x)/frames),
+				y: -((card.pos.y - dest.y)/frames)
+			});
+		});
+		return this.animate(frames, offsets);
+	}
+	render(){
+		this.deck.onload(()=>this.deck.cards.forEach(card=>this.renderCard(card)));
 	}
 	renderCard(card){
 		var idx = this.rendered.indexOf(card);
@@ -188,5 +208,11 @@ class PlayArea{
 		min = Math.ceil(min);
 		max = Math.floor(max);
 		return Math.floor(Math.random() * (max - min + 1)) + min;
+	}
+}
+
+class CardColumn{
+	constructor(){
+		
 	}
 }
