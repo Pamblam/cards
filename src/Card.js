@@ -1,4 +1,72 @@
-<?xml version="1.0" encoding="UTF-8"?>
+/**
+ * Object to represent a single card
+ * @type Card
+ */
+class Card extends EventEmittingClass{
+	
+	constructor(rank, suit){
+		super();
+		this.suite = suit;
+		this.rank = rank;
+		this.name = `${Card.ranks_long[Card.ranks_short.indexOf(rank.toString())]} of ${Card.suits_long[Card.suits_short.indexOf(suit)]}s`;
+		this.faceup = false;
+		this.front_image = new Image;
+		this.back_image = new Image;
+		this.width = 79;
+		this.height = 123;
+		this.loaded = false;
+		this.createSingleFireEvent('load');
+	}
+	
+	/**
+	 * Load the images
+	 * @returns {Card}
+	 */
+	load(){
+		if(this.loaded) return this;
+		var fx = Card.ranks_short.indexOf(this.rank)*this.width,
+			fy = Card.suits_short.indexOf(this.suite)*this.height,
+			bx = 2*this.width,
+			by = 4*this.height,
+			fcanvas = document.createElement('canvas'),
+			bcanvas = document.createElement('canvas');
+		fcanvas.width = this.width;
+		fcanvas.height = this.height;
+		bcanvas.width = this.width;
+		bcanvas.height = this.height;
+		var fctx = fcanvas.getContext('2d');
+		var bctx = bcanvas.getContext('2d');
+		var ssdatauri = 'data:image/svg+xml;base64,'+btoa(Card.svg);
+		var sprite_sheet = new Image();
+		sprite_sheet.onload = ()=>{			
+			var generate_front = new Promise(done=>{
+				fctx.drawImage(sprite_sheet, fx, fy, this.width, this.height, 0, 0, this.width, this.height);
+				var data_uri = fcanvas.toDataURL();
+				this.front_image.onload = ()=>done();
+				this.front_image.src = data_uri;
+			});
+			var generate_back = new Promise(done=>{
+				bctx.drawImage(sprite_sheet, bx, by, this.width, this.height, 0, 0, this.width, this.height);
+				var data_uri = bcanvas.toDataURL();
+				this.back_image.onload = ()=>done();
+				this.back_image.src = data_uri;
+			});
+			Promise.all([generate_front, generate_back]).then(()=>{
+				this.loaded = true;
+				this.emit('load');
+			});
+		};
+		sprite_sheet.src = ssdatauri;
+		return this;
+	}
+}
+
+Card.suits_short = ['C','D','H','S'];
+Card.suits_long = ["Club","Diamond","Heart","Spade"];
+Card.ranks_short = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+Card.ranks_long = ['Ace','2','3','4','5','6','7','8','9','10','Jack','Queen','King'];
+
+Card.svg = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1027" height="615" viewBox="0 0 1027 615" version="1.1">
 	<defs>
@@ -1591,4 +1659,4 @@
 	<use transform="translate(829.5,430.2) rotate(32.8)" xlink:href="#bar2"/>
 	<use transform="translate(908.5,430.5) rotate(32.8)" xlink:href="#bar2"/>
 	<use transform="translate(987.5,430.3) rotate(33.9)" xlink:href="#bar2"/>
-</svg>
+</svg>`;

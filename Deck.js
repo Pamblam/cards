@@ -159,7 +159,7 @@ class PlayArea{
 					});
 					this.render();
 					if(frames) setTimeout(()=>render(), 10);
-					else{
+					else{					
 						done();
 						this.is_animating = false;
 						if(this.animation_queue.length){
@@ -173,28 +173,34 @@ class PlayArea{
 		});
 	}
 	moveCardToPile(card, pile,frames=100){
-		var offsets = ()=>{
-			var o = [];
-			var pos = pile.getNextPos();
-			this.deck.cards.forEach(crd=>{
-				if(crd !== card){
-					o.push(null);
-				}else{
-					o.push({
-						y: (pos.y-crd.pos.y)/frames,
-						x: (pos.x-crd.pos.x)/frames,
-						rotation: 0
-					});
-				}
-			});
-			return o;
-		};
+//		var offsets = ()=>{
+//			var o = [];
+//			var pos = pile.getNextPos();
+//			this.deck.cards.forEach(crd=>{
+//				if(crd !== card){
+//					o.push(null);
+//				}else{
+//					o.push({
+//						y: (pos.y-crd.pos.y)/frames,
+//						x: (pos.x-crd.pos.x)/frames,
+//						rotation: 0
+//					});
+//				}
+//			});
+//			return o;
+//		};
+//		return new Promise(done=>{
+//			this.animate(frames, offsets).then(()=>{
+//				pile.addCard(card);
+//				this.render();
+//				done();
+//			});
+//		});
+
 		return new Promise(done=>{
-			this.animate(frames, offsets).then(()=>{
-				pile.addCard(card);
-				this.render();
-				done();
-			});
+			pile.addCard(card);
+			//this.render();
+			done();
 		});
 	}
 	heck(frames=100){
