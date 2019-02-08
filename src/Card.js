@@ -12,10 +12,20 @@ class Card extends EventEmittingClass{
 		this.faceup = false;
 		this.front_image = new Image;
 		this.back_image = new Image;
-		this.width = 79;
-		this.height = 123;
 		this.loaded = false;
+		this.color = suit === 'H' || suit === 'D' ? 'RED' : 'BLACK';
+		this.rotation = 0;
+		this.x = 0;
+		this.y = 0;
 		this.createSingleFireEvent('load');
+	}
+	
+	/**
+	 * Get the image of the card
+	 * @returns {Image}
+	 */
+	getImg(){
+		return this.faceup ? this.front_image : this.back_image;
 	}
 	
 	/**
@@ -24,29 +34,29 @@ class Card extends EventEmittingClass{
 	 */
 	load(){
 		if(this.loaded) return this;
-		var fx = Card.ranks_short.indexOf(this.rank)*this.width,
-			fy = Card.suits_short.indexOf(this.suite)*this.height,
-			bx = 2*this.width,
-			by = 4*this.height,
+		var fx = Card.ranks_short.indexOf(this.rank)*Card.width,
+			fy = Card.suits_short.indexOf(this.suite)*Card.height,
+			bx = 2*Card.width,
+			by = 4*Card.height,
 			fcanvas = document.createElement('canvas'),
 			bcanvas = document.createElement('canvas');
-		fcanvas.width = this.width;
-		fcanvas.height = this.height;
-		bcanvas.width = this.width;
-		bcanvas.height = this.height;
+		fcanvas.width = Card.width;
+		fcanvas.height = Card.height;
+		bcanvas.width = Card.width;
+		bcanvas.height = Card.height;
 		var fctx = fcanvas.getContext('2d');
 		var bctx = bcanvas.getContext('2d');
 		var ssdatauri = 'data:image/svg+xml;base64,'+btoa(Card.svg);
 		var sprite_sheet = new Image();
 		sprite_sheet.onload = ()=>{			
 			var generate_front = new Promise(done=>{
-				fctx.drawImage(sprite_sheet, fx, fy, this.width, this.height, 0, 0, this.width, this.height);
+				fctx.drawImage(sprite_sheet, fx, fy, Card.width, Card.height, 0, 0, Card.width, Card.height);
 				var data_uri = fcanvas.toDataURL();
 				this.front_image.onload = ()=>done();
 				this.front_image.src = data_uri;
 			});
 			var generate_back = new Promise(done=>{
-				bctx.drawImage(sprite_sheet, bx, by, this.width, this.height, 0, 0, this.width, this.height);
+				bctx.drawImage(sprite_sheet, bx, by, Card.width, Card.height, 0, 0, Card.width, Card.height);
 				var data_uri = bcanvas.toDataURL();
 				this.back_image.onload = ()=>done();
 				this.back_image.src = data_uri;
@@ -59,7 +69,18 @@ class Card extends EventEmittingClass{
 		sprite_sheet.src = ssdatauri;
 		return this;
 	}
+	
+	render(ctx){
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.rotate(this.rotation*Math.PI/180);
+		ctx.drawImage(this.getImg(), -Card.width/2, -Card.height/2);
+		ctx.restore();
+	}
 }
+
+Card.width = 79;
+Card.height = 123;
 
 Card.suits_short = ['C','D','H','S'];
 Card.suits_long = ["Club","Diamond","Heart","Spade"];

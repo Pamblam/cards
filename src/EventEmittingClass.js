@@ -75,6 +75,7 @@ class EventEmittingClass{
 		if('string' !== typeof eventType){
 			return false;
 		}
+		var evt = new ClassEmittedEvent(this, eventType);
 		if(!this.event_queue.hasOwnProperty(eventType)){
 			this.event_queue[eventType] = [];
 		}
@@ -83,8 +84,8 @@ class EventEmittingClass{
 			this.single_fire_events[eventType] = true;
 		}
 		for(let i=this.event_queue[eventType].length; i--;){
-			let res = this.event_queue[eventType][i].call(this);
-			if(res === false && !isSingleFire){
+			let res = this.event_queue[eventType][i].call(this, evt);
+			if(!evt.propagating && !isSingleFire){
 				break;
 			}
 		}

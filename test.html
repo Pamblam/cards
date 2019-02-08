@@ -6,12 +6,76 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	</head>
 	<body>
-		<!--<canvas id="canvas" width="1027" height="615" style="background:green;"></canvas>-->
 		
+		<script src="src/ClassEmittedEvent.js"></script>
 		<script src="src/EventEmittingClass.js"></script>
 		<script src="src/Card.js"></script>
+		<script src="src/CardStack.js"></script>
+		<script src="src/CardGame.js"></script>
 		<script>
-			//var canvas = document.getElementById('canvas');
+			
+			var game = new CardGame(391, 153);
+			
+			var deck = new CardStack(
+				CardStack.DRAW_MODE_ANY,
+				CardStack.DROP_MODE_NONE,
+				CardStack.CARD_POS_FACEDOWN, 
+				CardStack.OFFSET_MODE_NONE,
+				15+39.5, 15+61.5
+			);
+			deck.rotation = 7;
+	
+			deck.on('click', function(e){
+				console.log(e);
+			});
+	
+			var discard = new CardStack(
+				CardStack.DRAW_MODE_ANY,
+				CardStack.DROP_MODE_ANY,
+				CardStack.CARD_POS_FACEUP, 
+				CardStack.OFFSET_MODE_NONE,
+				109+39.5, 15+61.5
+			);
+			discard.rotation = 355;
+			
+			var asc = new CardStack(
+				CardStack.DRAW_MODE_NONE,
+				CardStack.DROP_MODE_ASC,
+				CardStack.CARD_POS_FACEUP, 
+				CardStack.OFFSET_MODE_NONE,
+				203+39.5, 15+61.5
+			);
+			asc.rotation = 355;
+			
+			asc.on('mouseover', function(e){
+				console.log('mouseover');
+			});
+			
+			asc.on('mouseout', function(e){
+				console.log('mouseout');
+			});
+			
+			var alt = new CardStack(
+				CardStack.DRAW_MODE_NONE,
+				CardStack.DROP_MODE_ALT,
+				CardStack.CARD_POS_FACEUP, 
+				CardStack.OFFSET_MODE_NONE,
+				297+39.5, 15+61.5
+			);
+			
+			deck.on('deck-added', function(){
+				game.addStack(this);
+				game.addStack(discard);
+				game.addStack(asc);
+				game.addStack(alt);
+				
+				game.canvas.style.background = 'green';
+				document.body.appendChild(game.canvas);
+				
+				game.render();
+			});
+			
+			deck.addDeck();
 			
 		</script>
 	</body>
