@@ -48,11 +48,13 @@
 			asc.rotation = 355;
 			
 			asc.on('mouseover', function(e){
-				console.log('mouseover');
+				this.bgColor = 'red';
+				game.render();
 			});
 			
 			asc.on('mouseout', function(e){
-				console.log('mouseout');
+				this.bgColor = null;
+				game.render();
 			});
 			
 			var alt = new CardStack(

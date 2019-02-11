@@ -69,13 +69,13 @@ class EventEmittingClass{
 	/**
 	 * Emit event to be handled
 	 * @param {string} eventType
-	 * @returns {true|false}
+	 * @returns {ClassEmittedEvent|false}
 	 */
-	emit(eventType){
+	emit(eventType, props={}){
 		if('string' !== typeof eventType){
 			return false;
 		}
-		var evt = new ClassEmittedEvent(this, eventType);
+		var evt = new ClassEmittedEvent(this, eventType, props);
 		if(!this.event_queue.hasOwnProperty(eventType)){
 			this.event_queue[eventType] = [];
 		}
@@ -90,7 +90,7 @@ class EventEmittingClass{
 			}
 		}
 		if(isSingleFire) this.event_queue[eventType] = [];
-		return true;
+		return evt;
 	}
 	
 }

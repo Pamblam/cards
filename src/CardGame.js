@@ -21,6 +21,7 @@ class CardGame extends EventEmittingClass{
 	}
 	
 	render(){
+		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 		this.cardStacks.forEach(stack=>stack.render(this.ctx));
 	}
 	
@@ -41,29 +42,29 @@ class CardGame extends EventEmittingClass{
 			this.canvas.addEventListener(evtType, e=>{
 				var pos = this.relativeMousePos(e);
 				var objects = this.getObjectsAt(pos.x, pos.y);
-				objects.forEach(obj=>obj.emit(evtType));
+				objects.forEach(obj=>obj.emit(evtType, pos));
 			});
 		});
 		
 		var mo_failsafe_timer = false;
 		var last_known_mouse_pos = {x:0, y:0};
-		document.addEventListener('mousemove', e=>{
+		
+		const fireEventAtPos = pos => {
+			pos.render = ()=>this.render();
+			var objects = this.getObjectsAt(pos.x, pos.y);
+			var mouseoverobjs = objects.filter(obj=>!~mouseState.mouseOver.indexOf(obj));
+			var mouseoutobjs = mouseState.mouseOver.filter(obj=>!~objects.indexOf(obj));
+			mouseState.mouseOver = mouseState.mouseOver.filter(obj=>!~mouseoutobjs.indexOf(obj));
+			mouseoverobjs.forEach(obj=>obj.emit('mouseover', pos));
+			mouseoutobjs.forEach(obj=>obj.emit('mouseout', pos));
+			objects.forEach(obj=>obj.emit('mousemove', pos));
+			mouseState.mouseOver.push(...mouseoverobjs);
+		};
 			
+		document.addEventListener('mousemove', e=>{
 			last_known_mouse_pos = {x: e.clientX, y: e.clientY};
 			if(false !== mo_failsafe_timer) clearTimeout(mo_failsafe_timer);
-			
-			const fireEventAtPos = pos => {
-				var objects = this.getObjectsAt(pos.x, pos.y);
-				var mouseoverobjs = objects.filter(obj=>!~mouseState.mouseOver.indexOf(obj));
-				var mouseoutobjs = mouseState.mouseOver.filter(obj=>!~objects.indexOf(obj));
-				mouseState.mouseOver = mouseState.mouseOver.filter(obj=>!~mouseoutobjs.indexOf(obj));
-				mouseoverobjs.forEach(obj=>obj.emit('mouseover'));
-				mouseoutobjs.forEach(obj=>obj.emit('mouseout'));
-				mouseState.mouseOver.push(...mouseoverobjs);
-			};
-			
 			mo_failsafe_timer = setTimeout(()=>fireEventAtPos(last_known_mouse_pos), 500);
-			
 			if(e.target === this.canvas){
 				var pos = this.relativeMousePos(e);
 				fireEventAtPos(pos);

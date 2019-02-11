@@ -14,6 +14,87 @@ class CardStack extends EventEmittingClass{
 		this.x = x;
 		this.y = y;
 		this.rotation = 0;
+		
+		this.lineWidth = 1;
+		this.lineColor = 'black';
+		this.bgColor = null;
+		
+		this.dragState = {
+			card: null,
+			xOffset: 0,
+			yOffset: 0,
+			originalx: null,
+			originaly: null
+		};
+		
+		this.cardClickHandler = this.cardClickHandler.bind(this);
+		this.cardMouseoverHandler = this.cardMouseoverHandler.bind(this);
+		this.cardMouseoutHandler = this.cardMouseoutHandler.bind(this);
+		this.cardMousedownHandler = this.cardMousedownHandler.bind(this);
+		this.cardMouseupHandler = this.cardMouseupHandler.bind(this);
+		this.cardMousemoveHandler = this.cardMousemoveHandler.bind(this);
+	}
+	
+	topCardAt(x, y){
+		var lowestIndex = false;
+		this.cards.forEach((card, idx)=>{
+			var touching = CardGame.pointTouchesRect(x, y, card.x, card.y, Card.width, Card.height, card.rotation);
+			if(touching && (false === lowestIndex || idx < lowestIndex)){
+				lowestIndex = idx
+			}
+		});
+		return lowestIndex === false ? false : this.cards[lowestIndex];
+	}
+	
+	cardClickHandler(e){
+		if(e.target !== this.topCardAt(e.x, e.y)) return;
+		this.emit('topcardclick', {card: e.target, x: e.x, y: e.y});
+	}
+	
+	cardMouseoverHandler(e){
+		if(e.target !== this.topCardAt(e.x, e.y)) return;
+		this.emit('topcardmouseover', {card: e.target, x: e.x, y: e.y});
+	}
+	
+	cardMouseoutHandler(e){
+		if(e.target !== this.topCardAt(e.x, e.y)) return;
+		this.emit('topcardmouseout', {card: e.target, x: e.x, y: e.y});
+	}
+	
+	cardMousedownHandler(e){
+		if(e.target !== this.topCardAt(e.x, e.y)) return;
+		var evt = this.emit('topcardmousedown', {card: e.target, x: e.x, y: e.y});
+		if(this.canDraw(e.target) && !evt.cancelled){
+			this.dragState = {
+				card: e.target,
+				xOffset: e.x-card.x,
+				yOffset: e.y-card.y,
+				originalx: card.x,
+				originaly: card.y
+			};
+		}
+	}
+	
+	cardMouseupHandler(e){
+		if(e.target !== this.topCardAt(e.x, e.y)) return;
+		this.emit('topcardmouseup', {card: e.target, x: e.x, y: e.y});
+		this.dragState = {
+			card: null,
+			xOffset: 0,
+			yOffset: 0,
+			originalx: null,
+			originaly: null
+		};
+	}
+	
+	cardMousemoveHandler(e){
+		if(e.target !== this.topCardAt(e.x, e.y)) return;
+		this.emit('topcardmousemove', {card: e.target, x: e.x, y: e.y});
+		if(this.dragState.card !== null){
+			e.target.x += e.x;
+			e.target.y += e.y;
+			e.render();
+		}
 	}
 	
 	getNextPos(){
@@ -60,9 +141,7 @@ class CardStack extends EventEmittingClass{
 			case CardStack.DRAW_MODE_NONE: return false;
 			case CardStack.DRAM_MODE_TOP: return card === this.topCard();
 		}
-	}
-	
-	
+	}	
 	
 	/**
 	 * Add a card to the stack
@@ -76,6 +155,9 @@ class CardStack extends EventEmittingClass{
 				case CardStack.CARD_POS_FACEUP: card.faceup = true; break;
 				case CardStack.CARD_POS_FACEDOWN: card.faceup = false; break;
 			}
+			card.on('click', this.cardClickHandler);
+			card.on('mouseover', this.cardMouseoverHandler);
+			card.on('mouseout', this.cardMouseoutHandler);
 			var pos = this.getNextPos();
 			card.x = pos.x;
 			card.y = pos.y;
@@ -94,6 +176,7 @@ class CardStack extends EventEmittingClass{
 	removeCard(card){
 		var idx = this.cards.indexOf(card);
 		if(idx !== -1){
+			card.off('click', this.cardClickHandler);
 			this.cards.splice(idx, 1);
 			return true;
 		}
@@ -162,7 +245,7 @@ class CardStack extends EventEmittingClass{
 		ctx.save();
 		ctx.translate(this.x, this.y);
 		ctx.rotate(this.rotation*Math.PI/180);
-		CardStack.renderSquare(ctx, 0, 0, Card.width, Card.height);
+		CardStack.renderSquare(ctx, 0, 0, Card.width, Card.height, this.lineWidth, this.lineColor, this.bgColor);
 		ctx.restore();
 		for(let i=this.cards.length; i--;){
 			this.cards[i].render(ctx);
@@ -198,11 +281,10 @@ CardStack.OFFSET_PX = 20;
  * @param {number} height
  * @returns {true}
  */
-CardStack.renderSquare = (ctx, x, y, width, height)=>{
+CardStack.renderSquare = (ctx, x, y, width, height, lineWidth=1, lineColor='black', bgColor=null)=>{
 	x -= (width/2);
 	y -= (height/2);
 	var radius = 5;
-	ctx.strokeStyle = "black";
 	ctx.beginPath();
 	ctx.moveTo(x + radius, y);
 	ctx.lineTo(x + width - radius, y);
@@ -214,6 +296,17 @@ CardStack.renderSquare = (ctx, x, y, width, height)=>{
 	ctx.lineTo(x, y + radius);
 	ctx.quadraticCurveTo(x, y, x + radius, y);
 	ctx.closePath();
-	ctx.stroke();
+	
+	if(lineWidth && lineColor){
+		ctx.strokeStyle = lineColor;
+		ctx.lineWidth = lineWidth;
+		ctx.stroke();
+	}
+	
+	if(bgColor){
+		ctx.fillStyle = bgColor;
+		ctx.fill();
+	}
+	
 	return true;
 };
