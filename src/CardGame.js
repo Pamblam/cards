@@ -41,6 +41,7 @@ class CardGame extends EventEmittingClass{
 		['click', 'mousedown', 'mouseup'].forEach(evtType=>{
 			this.canvas.addEventListener(evtType, e=>{
 				var pos = this.relativeMousePos(e);
+				pos.render = ()=>this.render();
 				var objects = this.getObjectsAt(pos.x, pos.y);
 				objects.forEach(obj=>obj.emit(evtType, pos));
 			});

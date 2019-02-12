@@ -67,17 +67,20 @@ class CardStack extends EventEmittingClass{
 		if(this.canDraw(e.target) && !evt.cancelled){
 			this.dragState = {
 				card: e.target,
-				xOffset: e.x-card.x,
-				yOffset: e.y-card.y,
-				originalx: card.x,
-				originaly: card.y
+				xOffset: e.x-e.target.x,
+				yOffset: e.y-e.target.y,
+				originalx: e.target.x,
+				originaly: e.target.y
 			};
 		}
 	}
 	
 	cardMouseupHandler(e){
-		if(e.target !== this.topCardAt(e.x, e.y)) return;
-		this.emit('topcardmouseup', {card: e.target, x: e.x, y: e.y});
+		if(e.target === this.topCardAt(e.x, e.y)){
+			this.emit('topcardmouseup', {card: e.target, x: e.x, y: e.y});
+		}
+		this.dragState.card.x = this.dragState.originalx;
+		this.dragState.card.y = this.dragState.originaly;
 		this.dragState = {
 			card: null,
 			xOffset: 0,
@@ -85,14 +88,15 @@ class CardStack extends EventEmittingClass{
 			originalx: null,
 			originaly: null
 		};
+		e.render();
 	}
 	
 	cardMousemoveHandler(e){
 		if(e.target !== this.topCardAt(e.x, e.y)) return;
 		this.emit('topcardmousemove', {card: e.target, x: e.x, y: e.y});
-		if(this.dragState.card !== null){
-			e.target.x += e.x;
-			e.target.y += e.y;
+		if(this.dragState.card !== null){			
+			this.dragState.card.x = e.x-this.dragState.xOffset;
+			this.dragState.card.y = e.y-this.dragState.yOffset;
 			e.render();
 		}
 	}
@@ -158,6 +162,11 @@ class CardStack extends EventEmittingClass{
 			card.on('click', this.cardClickHandler);
 			card.on('mouseover', this.cardMouseoverHandler);
 			card.on('mouseout', this.cardMouseoutHandler);
+			
+			card.on('mousedown', this.cardMousedownHandler);
+			card.on('mouseup', this.cardMouseupHandler);
+			card.on('mousemove', this.cardMousemoveHandler);		
+		
 			var pos = this.getNextPos();
 			card.x = pos.x;
 			card.y = pos.y;
